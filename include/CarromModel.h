@@ -11,4 +11,5 @@ struct CarromModel {
     Board                 board;
     std::vector<Circle2D> pieces;
     std::array<Pocket, 4> pockets;
+    Circle2D              striker;
 };

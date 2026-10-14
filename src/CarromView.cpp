@@ -12,9 +12,10 @@ static Vector2 toScreen(Vec2 p, float padding, float boardSize) {
 
 static Color colorOf(PieceType type) {
     switch (type) {
-        case PieceType::Queen: return {220,  40,  40, 255};
-        case PieceType::Black: return { 30,  30,  30, 255};
-        case PieceType::White: return {235, 230, 210, 255};
+        case PieceType::Queen:   return {220,  40,  40, 255};
+        case PieceType::Black:   return { 30,  30,  30, 255};
+        case PieceType::White:   return {245, 245, 245, 255};
+        case PieceType::Striker: return { 70, 130, 180, 255};  // steel blue
     }
     return WHITE;
 }
@@ -34,6 +35,7 @@ void CarromView::drawFrame(const CarromModel& model) const {
         drawBoard(model.board);
         drawPockets(model.pockets);
         drawPieces(model.pieces);
+        drawStriker(model.striker);
         DrawFPS(10, 10);
     EndDrawing();
 }
@@ -113,10 +115,17 @@ void CarromView::drawPockets(const std::array<Pocket, 4>& pockets) const {
         DrawCircleV(toScreen(p.position, m_padding, m_boardSize), p.radius, BLACK);
 }
 
+void CarromView::drawStriker(const Circle2D& striker) const {
+    Vector2 sp = toScreen(striker.position, m_padding, m_boardSize);
+    DrawCircleV(sp, striker.radius, colorOf(striker.type));
+    DrawCircleLinesV(sp, striker.radius, DARKBLUE);
+    DrawCircleLinesV(sp, striker.radius * 0.4f, DARKBLUE);  // inner ring detail
+}
+
 void CarromView::drawPieces(const std::vector<Circle2D>& pieces) const {
     for (const auto& c : pieces) {
         Vector2 sp = toScreen(c.position, m_padding, m_boardSize);
         DrawCircleV(sp, c.radius, colorOf(c.type));
-        DrawCircleLines((int)sp.x, (int)sp.y, (int)c.radius, BLACK);
+        DrawCircleLinesV(sp, c.radius, BLACK);
     }
 }

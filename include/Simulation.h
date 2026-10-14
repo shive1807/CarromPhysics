@@ -16,7 +16,9 @@ private:
     void resolveCircleCollisions();
     void checkPockets();
 
-    static std::array<Pocket, 4> cornersOf(const Board& board, float pocketRadius);
+    static void                   resolveCirclePair(Circle2D& a, Circle2D& b);
+    static Circle2D               defaultStriker(const Board& board);
+    static std::array<Pocket, 4>  cornersOf(const Board& board, float pocketRadius);
 
     CarromModel m_model;
     float       m_friction;

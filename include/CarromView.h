@@ -13,6 +13,7 @@ private:
     void drawStrikerLines(const Board& board)               const;
     void drawPockets(const std::array<Pocket, 4>& pockets)  const;
     void drawPieces(const std::vector<Circle2D>& pieces)    const;
+    void drawStriker(const Circle2D& striker)               const;
 
     float m_windowSize;
     float m_boardSize;
