@@ -115,6 +115,12 @@ void CarromView::drawPockets(const std::array<Pocket, 4>& pockets) const {
         DrawCircleV(toScreen(p.position, m_padding, m_boardSize), p.radius, BLACK);
 }
 
+void CarromView::drawAimLine(Vec2 from, Vec2 to) const {
+    DrawLineV(toScreen(from, m_padding, m_boardSize),
+              toScreen(to,   m_padding, m_boardSize),
+              {70, 130, 180, 180});
+}
+
 void CarromView::drawStriker(const Circle2D& striker) const {
     Vector2 sp = toScreen(striker.position, m_padding, m_boardSize);
     DrawCircleV(sp, striker.radius, colorOf(striker.type));

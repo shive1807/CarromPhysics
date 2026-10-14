@@ -36,6 +36,10 @@ void Simulation::addPiece(Circle2D piece) {
     m_model.pieces.push_back(piece);
 }
 
+void Simulation::shoot(Vec2 velocity) {
+    m_model.striker.velocity = velocity;
+}
+
 void Simulation::step(float dt) {
     auto applyPhysics = [&](Circle2D& c) {
         c.position += c.velocity * dt;

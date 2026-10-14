@@ -7,6 +7,7 @@ public:
     explicit Simulation(Board board, float friction = 0.985f);
 
     void addPiece(Circle2D piece);
+    void shoot(Vec2 velocity);
     void step(float dt);
 
     [[nodiscard]] const CarromModel& model() const { return m_model; }

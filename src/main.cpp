@@ -2,7 +2,7 @@
 #include "Simulation.h"
 #include "CarromLayout.h"
 #include "CarromView.h"
-#include "CarromModel.h"
+#include "CarromPresenter.h"
 
 constexpr int   kWindowSize = 700;
 constexpr float kBoardSize  = 600.0f;
@@ -15,12 +15,11 @@ int main() {
     InitWindow(kWindowSize, kWindowSize, "CarromPhysics");
     SetTargetFPS(60);
 
-    CarromView view(kWindowSize, kBoardSize);
+    CarromView      view(kWindowSize, kBoardSize);
+    CarromPresenter presenter(sim, view, kWindowSize, kBoardSize);
 
-    while (!WindowShouldClose()) {
-        sim.step(GetFrameTime());
-        view.drawFrame(sim.model());
-    }
+    while (!WindowShouldClose())
+        presenter.update(GetFrameTime());
 
     CloseWindow();
     return 0;

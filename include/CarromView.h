@@ -7,6 +7,7 @@ public:
     CarromView(int windowSize, float boardSize);
 
     void drawFrame(const CarromModel& model) const;
+    void drawAimLine(Vec2 from, Vec2 to) const;
 
 private:
     void drawBoard(const Board& board)                      const;
