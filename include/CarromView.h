@@ -10,6 +10,7 @@ public:
 
 private:
     void drawBoard(const Board& board)                      const;
+    void drawStrikerLines(const Board& board)               const;
     void drawPockets(const std::array<Pocket, 4>& pockets)  const;
     void drawPieces(const std::vector<Circle2D>& pieces)    const;
 
