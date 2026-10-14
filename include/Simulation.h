@@ -17,6 +17,7 @@ public:
 
 private:
     void resolveWalls(Circle2D& c) const;
+    void resolveCircleCollisions();
 
     Board                 m_board;
     std::vector<Circle2D> m_pieces;
