@@ -1,13 +1,12 @@
 #include <iostream>
 #include "Circle2D.h"
+#include "Board.h"
 
 int main() {
-    Circle2D piece;
-    piece.position = {0.0f, 0.0f};
-    piece.velocity = {1.0f, 0.5f};
-    piece.radius   = 1.5f;
-    piece.mass     = 1.0f;
+    Board board{{0.0f, 0.0f}, 600.0f};
 
-    std::cout << "CarromPhysics\n";
+    std::cout << "Board bounds:\n"
+              << "  left="   << board.left()   << " right=" << board.right()  << "\n"
+              << "  bottom=" << board.bottom() << " top="   << board.top()    << "\n";
     return 0;
 }
