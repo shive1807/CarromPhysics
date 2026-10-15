@@ -41,6 +41,19 @@ void Simulation::shoot(Vec2 velocity) {
     m_model.striker.velocity = velocity;
 }
 
+void Simulation::resetStriker(bool topSide) {
+    Circle2D s = defaultStriker(m_model.board);
+    if (topSide)
+        s.position.y = m_model.board.top() - kStrikerEdgeOff - kStrikerLineGap * 0.5f;
+    m_model.striker = s;
+}
+
+void Simulation::setStrikerX(float x) {
+    const float halfSpan = m_model.board.size * 0.5f - 90.0f;  // half-board minus corner inset
+    m_model.striker.position.x = x < -halfSpan ? -halfSpan : (x > halfSpan ? halfSpan : x);
+    m_model.striker.velocity   = {};
+}
+
 static constexpr int kCollisionIterations = 8;
 
 void Simulation::step(float dt) {
@@ -106,14 +119,30 @@ void Simulation::resolveCirclePair(Circle2D& a, Circle2D& b) {
 }
 
 void Simulation::checkPockets() {
-    m_model.pieces.erase(
-        std::remove_if(m_model.pieces.begin(), m_model.pieces.end(), [&](const Circle2D& c) {
-            for (const auto& p : m_model.pockets)
-                if (p.contains(c.position)) return true;
-            return false;
-        }),
-        m_model.pieces.end()
-    );
+    auto& pieces = m_model.pieces;
+    auto  it     = pieces.begin();
+    while (it != pieces.end()) {
+        bool potted = false;
+        for (const auto& p : m_model.pockets) {
+            if (p.contains(it->position)) {
+                m_pottedThisTurn.push_back(*it);
+                potted = true;
+                break;
+            }
+        }
+        it = potted ? pieces.erase(it) : std::next(it);
+    }
+}
+
+void Simulation::clearPottedThisTurn() {
+    m_pottedThisTurn.clear();
+}
+
+void Simulation::returnPieceToCenter(PieceType type) {
+    static constexpr float kQueenRadius = 15.0f;
+    static constexpr float kPieceRadius = 18.0f;
+    float r = (type == PieceType::Queen) ? kQueenRadius : kPieceRadius;
+    m_model.pieces.push_back({{0.0f, 0.0f}, {}, r, 1.0f, type});
 }
 
 void Simulation::applyFriction(Circle2D& c) const {

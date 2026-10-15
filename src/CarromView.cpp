@@ -29,15 +29,22 @@ CarromView::CarromView(int windowSize, float boardSize)
     , m_pieceRingOuter(m_pieceRingInner + 10.0f)
 {}
 
-void CarromView::drawFrame(const CarromModel& model) const {
+void CarromView::beginFrame() const {
     BeginDrawing();
-        ClearBackground(RAYWHITE);
-        drawBoard(model.board);
-        drawPockets(model.pockets);
-        drawPieces(model.pieces);
-        drawStriker(model.striker);
-        DrawFPS(10, 10);
+    ClearBackground(RAYWHITE);
+}
+
+void CarromView::endFrame() const {
+    DrawFPS(10, 10);
     EndDrawing();
+}
+
+void CarromView::drawScene(const CarromModel& model, bool sliderActive) const {
+    drawBoard(model.board);
+    drawPockets(model.pockets);
+    drawPieces(model.pieces);
+    drawStriker(model.striker);
+    drawSlider(model.striker, sliderActive);
 }
 
 void CarromView::drawBoard(const Board& board) const {
@@ -115,10 +122,35 @@ void CarromView::drawPockets(const std::array<Pocket, 4>& pockets) const {
         DrawCircleV(toScreen(p.position, m_padding, m_boardSize), p.radius, BLACK);
 }
 
-void CarromView::drawAimLine(Vec2 from, Vec2 to) const {
-    DrawLineV(toScreen(from, m_padding, m_boardSize),
-              toScreen(to,   m_padding, m_boardSize),
-              {70, 130, 180, 180});
+void CarromView::drawSlider(const Circle2D& striker, bool active) const {
+    static constexpr float kSliderHalfSpan = 210.0f;
+    static constexpr float kSliderOffsetY  = 25.0f;
+    static constexpr float kHandleRadius   = 10.0f;
+    static constexpr float kHandleInnerR   = 8.0f;
+
+    const float centerX = m_padding + m_boardSize * 0.5f;
+    const float trackY  = m_padding + m_boardSize + kSliderOffsetY;
+    const float trackX0 = centerX - kSliderHalfSpan;
+    const float trackX1 = centerX + kSliderHalfSpan;
+
+    const Color trackColor  = active ? DARKBROWN : Color{160, 140, 120, 120};
+    const Color outerColor  = active ? DARKBROWN : Color{160, 140, 120, 120};
+    const Color innerColor  = active ? Color{210, 180, 140, 255} : Color{200, 200, 200, 120};
+    const Color borderColor = active ? BLACK     : Color{160, 160, 160, 120};
+
+    DrawLineV({trackX0, trackY}, {trackX1, trackY}, trackColor);
+
+    const float handleX = centerX + striker.position.x;
+    DrawCircleV({handleX, trackY}, kHandleRadius, outerColor);
+    DrawCircleV({handleX, trackY}, kHandleInnerR, innerColor);
+    DrawCircleLinesV({handleX, trackY}, kHandleRadius, borderColor);
+}
+
+void CarromView::drawAimLine(Vec2 from, Vec2 to, float powerRadius) const {
+    Vector2 sp = toScreen(from, m_padding, m_boardSize);
+    // Power ring: grows from striker radius to 2× striker radius
+    DrawCircleLinesV(sp, powerRadius, {70, 130, 180, 200});
+    DrawLineV(sp, toScreen(to, m_padding, m_boardSize), {70, 130, 180, 200});
 }
 
 void CarromView::drawStriker(const Circle2D& striker) const {

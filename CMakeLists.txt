@@ -23,6 +23,7 @@ add_executable(${PROJECT_NAME}
     src/CarromLayout.cpp
     src/CarromView.cpp
     src/CarromPresenter.cpp
+    src/CarromAI.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
