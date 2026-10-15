@@ -91,7 +91,7 @@ void Simulation::resolveCircleCollisions() {
             resolveCirclePair(pieces[i], pieces[j]);
 }
 
-void Simulation::resolveCirclePair(Circle2D& a, Circle2D& b) {
+void Simulation::resolveCirclePair(Circle2D& a, Circle2D& b) {  // NOLINT(readability-make-member-function-const)
     Vec2  delta   = b.position - a.position;
     float distSq  = delta.lengthSq();
     float minDist = a.radius + b.radius;
@@ -116,6 +116,12 @@ void Simulation::resolveCirclePair(Circle2D& a, Circle2D& b) {
     float impulse = 2.0f * relativeVel / totalMass;
     a.velocity   -= normal * (impulse * b.mass);
     b.velocity   += normal * (impulse * a.mass);
+
+    static constexpr float kMinEventImpulse = 5.0f;
+    if (impulse > kMinEventImpulse) {
+        Vec2 mid = (a.position + b.position) * 0.5f;
+        m_collisionEvents.push_back({mid, impulse});
+    }
 }
 
 void Simulation::checkPockets() {
@@ -136,6 +142,10 @@ void Simulation::checkPockets() {
 
 void Simulation::clearPottedThisTurn() {
     m_pottedThisTurn.clear();
+}
+
+void Simulation::clearCollisionEvents() {
+    m_collisionEvents.clear();
 }
 
 void Simulation::returnPieceToCenter(PieceType type) {

@@ -2,6 +2,7 @@
 
 #include "CarromAI.h"
 #include "CarromView.h"
+#include "ParticleSystem.h"
 #include "Simulation.h"
 
 class CarromPresenter {
@@ -22,6 +23,7 @@ private:
     void handleAIThink(float dt);
     void handleAIMoveStriker(float dt);
     void resolveTurnEnd();
+    void emitParticles(float dt);
     void draw() const;
 
     Vec2 mouseToSim() const;
@@ -30,9 +32,10 @@ private:
     bool allStopped() const;
     void switchTurn();
 
-    Simulation& m_sim;
-    CarromView& m_view;
-    CarromAI    m_ai;
+    Simulation&    m_sim;
+    CarromView&    m_view;
+    CarromAI       m_ai;
+    ParticleSystem m_particles;
 
     float m_padding;
     float m_boardSize;
@@ -41,6 +44,7 @@ private:
     Turn  m_winner       = Turn::Human;
     State m_state        = State::Idle;
     bool  m_queenSecured = false;
+    bool  m_showRules    = false;
     float m_aiTimer      = 0.0f;
     float m_aiTargetX    = 0.0f;
     Vec2  m_aiShootVel   = {};

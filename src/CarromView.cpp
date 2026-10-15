@@ -39,9 +39,12 @@ void CarromView::endFrame() const {
     EndDrawing();
 }
 
-void CarromView::drawScene(const CarromModel& model, bool sliderActive) const {
+void CarromView::drawBackground(const CarromModel& model) const {
     drawBoard(model.board);
     drawPockets(model.pockets);
+}
+
+void CarromView::drawForeground(const CarromModel& model, bool sliderActive) const {
     drawPieces(model.pieces);
     drawStriker(model.striker);
     drawSlider(model.striker, sliderActive);
@@ -144,6 +147,85 @@ void CarromView::drawSlider(const Circle2D& striker, bool active) const {
     DrawCircleV({handleX, trackY}, kHandleRadius, outerColor);
     DrawCircleV({handleX, trackY}, kHandleInnerR, innerColor);
     DrawCircleLinesV({handleX, trackY}, kHandleRadius, borderColor);
+}
+
+void CarromView::drawRulesButton() const {
+    DrawCircleV({kRulesBtnCX, kRulesBtnCY}, kRulesBtnR,  {50, 50, 50, 220});
+    DrawCircleLinesV({kRulesBtnCX, kRulesBtnCY}, kRulesBtnR, LIGHTGRAY);
+    DrawText("?", (int)(kRulesBtnCX - 4), (int)(kRulesBtnCY - 8), 16, WHITE);
+}
+
+void CarromView::drawRulesPanel() const {
+    // Full-screen dim
+    DrawRectangle(0, 0, (int)(m_boardSize + 2.0f * m_padding),
+                        (int)(m_boardSize + 2.0f * m_padding), {0, 0, 0, 150});
+
+    // Panel card
+    DrawRectangleRounded({kPanelX, kPanelY, kPanelW, kPanelH}, 0.04f, 8,
+                         {240, 230, 210, 250});
+    DrawRectangleRoundedLines({kPanelX, kPanelY, kPanelW, kPanelH}, 0.04f, 8,
+                              DARKBROWN);
+
+    // Close button
+    DrawCircleV({kCloseBtnCX, kCloseBtnCY}, kCloseBtnR, {160, 60, 60, 230});
+    DrawText("x", (int)(kCloseBtnCX - 5), (int)(kCloseBtnCY - 8), 16, WHITE);
+
+    // Title
+    const char* title = "CARROM RULES";
+    int titleW = MeasureText(title, 26);
+    DrawText(title, (int)(kPanelX + kPanelW * 0.5f) - titleW / 2,
+             (int)(kPanelY + 18), 26, DARKBROWN);
+
+    // Divider
+    float divY = kPanelY + 54.0f;
+    DrawLineEx({kPanelX + 20, divY}, {kPanelX + kPanelW - 20, divY}, 1.5f, DARKBROWN);
+
+    // Rules text
+    static const char* kRules[] = {
+        "You play  White    AI plays  Black",
+        "",
+        "Pot your colored pieces to score.",
+        "",
+        "Pot the Queen and cover it (pocket one",
+        "of your pieces in the same turn) to",
+        "secure the Queen.",
+        "",
+        "If you pot the Queen without a cover,",
+        "the Queen returns to the center.",
+        "",
+        "You cannot pot your last piece until",
+        "the Queen has been secured.",
+        "",
+        "Potting your own piece earns a bonus",
+        "turn  —  keep shooting!",
+        "",
+        "First player to pot all their pieces",
+        "with the Queen secured wins.",
+    };
+
+    const int   kLineH   = 26;
+    const float startY   = divY + 14.0f;
+    const float textX    = kPanelX + 28.0f;
+
+    for (int i = 0; i < (int)(sizeof(kRules) / sizeof(kRules[0])); ++i) {
+        if (kRules[i][0] == '\0') continue;  // skip blank lines (already handled by spacing)
+        DrawText(kRules[i], (int)textX, (int)(startY + i * kLineH), 16, {50, 35, 20, 255});
+    }
+
+    // White / Black colour chips inline with first rule
+    DrawCircleV({textX + 75, startY + 9}, 7, {245, 245, 245, 255});
+    DrawCircleLinesV({textX + 75, startY + 9}, 7, DARKGRAY);
+    DrawCircleV({textX + 200, startY + 9}, 7, {30, 30, 30, 255});
+    DrawCircleLinesV({textX + 200, startY + 9}, 7, DARKGRAY);
+}
+
+void CarromView::drawParticles(const std::vector<Particle>& particles) const {
+    for (const auto& p : particles) {
+        const float t     = p.life / p.maxLife;               // 1 → 0
+        const auto  alpha = static_cast<uint8_t>(t * 210.0f); // fade out
+        const float r     = p.radius * (0.4f + 0.6f * t);    // shrink as it fades
+        DrawCircleV(toScreen(p.pos, m_padding, m_boardSize), r, {p.r, p.g, p.b, alpha});
+    }
 }
 
 void CarromView::drawAimLine(Vec2 from, Vec2 to, float powerRadius) const {

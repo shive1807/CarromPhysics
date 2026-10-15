@@ -26,6 +26,26 @@ CarromPresenter::CarromPresenter(Simulation& sim, CarromView& view,
 }
 
 void CarromPresenter::update(float dt) {
+    // Rules button / panel dismiss — checked before anything else so it works in every state
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        const Vector2 mp = GetMousePosition();
+        const float   dx = mp.x - CarromView::kRulesBtnCX;
+        const float   dy = mp.y - CarromView::kRulesBtnCY;
+        if (dx * dx + dy * dy <= CarromView::kRulesBtnR * CarromView::kRulesBtnR) {
+            m_showRules = !m_showRules;
+        } else if (m_showRules) {
+            const float cx = mp.x - CarromView::kCloseBtnCX;
+            const float cy = mp.y - CarromView::kCloseBtnCY;
+            if (cx * cx + cy * cy <= CarromView::kCloseBtnR * CarromView::kCloseBtnR)
+                m_showRules = false;
+        }
+    }
+
+    if (m_showRules) {
+        draw();
+        return;  // freeze game while panel is open
+    }
+
     switch (m_state) {
         case State::AIThinking:
             handleAIThink(dt);
@@ -35,8 +55,11 @@ void CarromPresenter::update(float dt) {
             break;
         case State::Moving:
             m_sim.step(dt);
-            if (allStopped())
+            emitParticles(dt);
+            if (allStopped()) {
+                m_particles.clear();
                 resolveTurnEnd();
+            }
             break;
         case State::GameOver:
             break;
@@ -195,11 +218,44 @@ void CarromPresenter::handleInput() {
     }
 }
 
+static void trailColor(PieceType t, uint8_t& r, uint8_t& g, uint8_t& b) {
+    switch (t) {
+        case PieceType::Queen:   r=220; g=60;  b=60;  break;
+        case PieceType::Black:   r=110; g=110; b=110; break;
+        case PieceType::White:   r=200; g=200; b=215; break;
+        case PieceType::Striker: r=70;  g=130; b=180; break;
+    }
+}
+
+void CarromPresenter::emitParticles(float dt) {
+    // Trails — one call per piece per frame, ParticleSystem filters by speed threshold
+    for (const auto& piece : m_sim.model().pieces) {
+        uint8_t r, g, b;
+        trailColor(piece.type, r, g, b);
+        m_particles.emitTrail(piece.position, piece.velocity, r, g, b);
+    }
+    {
+        uint8_t r, g, b;
+        trailColor(PieceType::Striker, r, g, b);
+        m_particles.emitTrail(m_sim.model().striker.position,
+                              m_sim.model().striker.velocity, r, g, b);
+    }
+
+    // Collision bursts — drain events recorded during this frame's step()
+    for (const auto& ev : m_sim.collisionEvents())
+        m_particles.emitBurst(ev.position, ev.impulse);
+    m_sim.clearCollisionEvents();
+
+    m_particles.update(dt);
+}
+
 void CarromPresenter::draw() const {
     const bool sliderActive = (m_state == State::Idle && m_turn == Turn::Human);
 
     m_view.beginFrame();
-    m_view.drawScene(m_sim.model(), sliderActive);
+    m_view.drawBackground(m_sim.model());
+    m_view.drawParticles(m_particles.particles());   // under pieces
+    m_view.drawForeground(m_sim.model(), sliderActive);
 
     if (m_state == State::Aiming) {
         const Circle2D& striker = m_sim.model().striker;
@@ -226,6 +282,11 @@ void CarromPresenter::draw() const {
         if (m_queenSecured)
             DrawText("Queen secured", 10, 62, 14, GOLD);
     }
+
+    m_view.drawRulesButton();
+
+    if (m_showRules)
+        m_view.drawRulesPanel();
 
     m_view.endFrame();
 }
