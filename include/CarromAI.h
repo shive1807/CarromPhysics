@@ -25,11 +25,10 @@ private:
         const Circle2D&    piece,
         const Pocket&      pocket) const;
 
-    static float scoreShot(const Circle2D& piece, const Pocket& pocket);
-    static AiShot fallbackShot(const CarromModel& model);
+    static float  scoreShot(const Circle2D& piece, const Pocket& pocket, float strikerTravel);
+    static AiShot setupShot(const CarromModel& model);
 
     static constexpr float kStrikerHalfSpan = 210.0f;
-    static constexpr float kMinPower        = 250.0f;
-    static constexpr float kMaxPower        = 650.0f;
-    static constexpr float kPowerFactor     = 3.0f;
+    static constexpr float kMinPower        = 300.0f;
+    static constexpr float kMaxPower        = 750.0f;
 };

@@ -1,11 +1,59 @@
 #include "CarromAI.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
+
+// ---------------------------------------------------------------------------
+// Free helpers
+// ---------------------------------------------------------------------------
+
+// True if the line segment [from, to] is NOT blocked by any piece in `pieces`
+// (ignoring `skip`). `movingR` is the radius of the object travelling the path.
+static bool pathClear(Vec2 from, Vec2 to,
+                       const std::vector<Circle2D>& pieces,
+                       const Circle2D* skip,
+                       float movingR)
+{
+    Vec2  ab  = to - from;
+    float len = ab.length();
+    if (len < 0.001f)
+        return true;
+
+    Vec2 n = ab * (1.0f / len);
+
+    for (const auto& p : pieces) {
+        if (&p == skip)
+            continue;
+        Vec2  ac      = p.position - from;
+        float t       = std::clamp(ac.dot(n), 0.0f, len);
+        Vec2  closest = from + n * t;
+        if ((p.position - closest).length() < p.radius + movingR)
+            return false;
+    }
+    return true;
+}
+
+// Power needed so the piece travels pieceToPocket after receiving the impulse.
+// Approximation: elastic equal-mass collision → all momentum transferred.
+// Friction model: v(x) decays so range ≈ v / k  where k ≈ 0.91 (from 0.985^60).
+static constexpr float kFrictionDecay = 0.91f;
+
+static float powerForRange(float strikerToGhost, float pieceToPocket) {
+    // Piece needs initial speed: pieceToPocket * kFrictionDecay to overcome friction
+    // Striker must arrive at ghost ball with that speed — it loses energy over strikerToGhost too.
+    float pieceNeed   = pieceToPocket * kFrictionDecay;
+    float strikerLoss = strikerToGhost * kFrictionDecay * 0.4f;  // partial loss en route
+    return pieceNeed + strikerLoss;
+}
+
+// ---------------------------------------------------------------------------
+// CarromAI::computeShot
+// ---------------------------------------------------------------------------
 
 std::optional<AiShot> CarromAI::computeShot(const CarromModel& model) const {
     if (model.pieces.empty())
-        return fallbackShot(model);
+        return setupShot(model);
 
     std::optional<ShotCandidate> best;
 
@@ -22,46 +70,76 @@ std::optional<AiShot> CarromAI::computeShot(const CarromModel& model) const {
     }
 
     if (!best)
-        return fallbackShot(model);
+        return setupShot(model);
 
     return AiShot{best->strikerX, best->velocity};
 }
+
+// ---------------------------------------------------------------------------
+// evaluatePocketShot  (ghost-ball method with validity checks)
+// ---------------------------------------------------------------------------
 
 std::optional<CarromAI::ShotCandidate> CarromAI::evaluatePocketShot(
     const CarromModel& model,
     const Circle2D&    piece,
     const Pocket&      pocket) const
 {
-    // Ghost ball method:
-    // Find where the striker center must be at the moment of contact to send the piece toward the pocket.
-    Vec2  toPocket = pocket.position - piece.position;
-    float dist     = toPocket.length();
-    if (dist < 0.001f)
+    // --- 1. Ghost ball position ---
+    Vec2  toPocket   = pocket.position - piece.position;
+    float pocketDist = toPocket.length();
+    if (pocketDist < 0.001f)
         return std::nullopt;
 
-    Vec2 pocketDir = toPocket * (1.0f / dist);
+    Vec2 pocketDir = toPocket * (1.0f / pocketDist);
     Vec2 ghostBall = piece.position - pocketDir * (piece.radius + model.striker.radius);
 
-    // Striker is constrained to baseline Y — clamp X to valid zone
-    float strikerX = ghostBall.x;
-    if (strikerX < -kStrikerHalfSpan) strikerX = -kStrikerHalfSpan;
-    if (strikerX >  kStrikerHalfSpan) strikerX =  kStrikerHalfSpan;
-
+    // --- 2. Clamp striker X to the baseline zone ---
+    float strikerX   = std::clamp(ghostBall.x, -kStrikerHalfSpan, kStrikerHalfSpan);
     Vec2  strikerPos = {strikerX, model.striker.position.y};
+
+    // --- 3. Reachability: ghost ball must be in front of the striker ---
+    // AI shoots from top baseline (positive Y). "Forward" = smaller Y (downward).
+    // If ghost ball is above (higher Y) than striker, the shot would go backward.
+    if (model.striker.position.y > 0.0f) {
+        if (ghostBall.y >= strikerPos.y - 10.0f)
+            return std::nullopt;
+    } else {
+        if (ghostBall.y <= strikerPos.y + 10.0f)
+            return std::nullopt;
+    }
+
+    // --- 4. Direction and travel length ---
     Vec2  toGhost    = ghostBall - strikerPos;
     float toGhostLen = toGhost.length();
     if (toGhostLen < 0.001f)
         return std::nullopt;
 
-    float power    = std::clamp(toGhostLen * kPowerFactor, kMinPower, kMaxPower);
+    // --- 5. Obstacle check: striker path to ghost ball ---
+    if (!pathClear(strikerPos, ghostBall, model.pieces, &piece, model.striker.radius))
+        return std::nullopt;
+
+    // --- 6. Obstacle check: piece path to pocket ---
+    if (!pathClear(piece.position, pocket.position, model.pieces, &piece, piece.radius * 0.85f))
+        return std::nullopt;
+
+    // --- 7. Power calibrated to push the piece all the way to the pocket ---
+    float rawPower = powerForRange(toGhostLen, pocketDist);
+    float power    = std::clamp(rawPower, kMinPower, kMaxPower);
     Vec2  velocity = toGhost * (power / toGhostLen);
 
-    return ShotCandidate{strikerX, velocity, scoreShot(piece, pocket)};
+    return ShotCandidate{strikerX, velocity, scoreShot(piece, pocket, toGhostLen)};
 }
 
-float CarromAI::scoreShot(const Circle2D& piece, const Pocket& pocket) {
-    float dist  = (pocket.position - piece.position).length();
-    float score = 1000.0f / (dist + 1.0f);
+// ---------------------------------------------------------------------------
+// Scoring
+// ---------------------------------------------------------------------------
+
+float CarromAI::scoreShot(const Circle2D& piece, const Pocket& pocket, float strikerTravel) {
+    float pocketDist = (pocket.position - piece.position).length();
+
+    // Prefer pieces closer to pockets; penalise long striker travel
+    float score = 1500.0f / (pocketDist + 1.0f)
+                - strikerTravel * 0.4f;
 
     if (piece.type == PieceType::Queen)
         score *= 2.0f;
@@ -69,8 +147,41 @@ float CarromAI::scoreShot(const Circle2D& piece, const Pocket& pocket) {
     return score;
 }
 
-AiShot CarromAI::fallbackShot(const CarromModel& model) {
-    // Shoot toward board center — direction depends on which baseline the striker is on
-    const float dir = model.striker.position.y > 0.0f ? -1.0f : 1.0f;
-    return {0.0f, {0.0f, kMaxPower * dir}};
+// ---------------------------------------------------------------------------
+// Setup shot: aim directly at the best-positioned piece when no clean pot exists
+// ---------------------------------------------------------------------------
+
+AiShot CarromAI::setupShot(const CarromModel& model) {
+    float bestScore = -FLT_MAX;
+    Vec2  bestPos   = {0.0f, 0.0f};
+    bool  found     = false;
+
+    for (const auto& p : model.pieces) {
+        if (p.type != PieceType::Black && p.type != PieceType::Queen)
+            continue;
+        for (const auto& pocket : model.pockets) {
+            float d = (p.position - pocket.position).length();
+            float s = 1000.0f / (d + 1.0f) + (p.type == PieceType::Queen ? 500.0f : 0.0f);
+            if (s > bestScore) { bestScore = s; bestPos = p.position; found = true; }
+        }
+    }
+
+    if (!found) {
+        // Nothing left to aim at — shoot centre
+        const float dir = model.striker.position.y > 0.0f ? -1.0f : 1.0f;
+        return {0.0f, {0.0f, kMaxPower * dir}};
+    }
+
+    // Aim striker directly at the chosen piece with high power
+    float strikerX   = std::clamp(bestPos.x, -kStrikerHalfSpan, kStrikerHalfSpan);
+    Vec2  strikerPos = {strikerX, model.striker.position.y};
+    Vec2  toTarget   = bestPos - strikerPos;
+    float dist       = toTarget.length();
+    if (dist < 0.001f) {
+        const float dir = model.striker.position.y > 0.0f ? -1.0f : 1.0f;
+        return {0.0f, {0.0f, kMaxPower * dir}};
+    }
+
+    float power = std::clamp(dist * 1.8f, kMinPower, kMaxPower);
+    return {strikerX, toTarget * (power / dist)};
 }
