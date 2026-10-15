@@ -40,18 +40,28 @@ void Simulation::shoot(Vec2 velocity) {
     m_model.striker.velocity = velocity;
 }
 
+static constexpr int kCollisionIterations = 8;
+
 void Simulation::step(float dt) {
-    auto applyPhysics = [&](Circle2D& c) {
-        c.position += c.velocity * dt;
-        resolveWalls(c);
-        c.velocity *= m_friction;
-    };
-
+    // 1. Integrate positions
     for (auto& c : m_model.pieces)
-        applyPhysics(c);
-    applyPhysics(m_model.striker);
+        c.position += c.velocity * dt;
+    m_model.striker.position += m_model.striker.velocity * dt;
 
-    resolveCircleCollisions();
+    // 2. Resolve walls
+    for (auto& c : m_model.pieces)
+        resolveWalls(c);
+    resolveWalls(m_model.striker);
+
+    // 3. Resolve circle collisions — multiple passes prevent sticking in dense clusters
+    for (int i = 0; i < kCollisionIterations; ++i)
+        resolveCircleCollisions();
+
+    // 4. Apply friction after all constraints are resolved
+    for (auto& c : m_model.pieces)
+        c.velocity *= m_friction;
+    m_model.striker.velocity *= m_friction;
+
     checkPockets();
 }
 
@@ -83,8 +93,10 @@ void Simulation::resolveCirclePair(Circle2D& a, Circle2D& b) {
     a.position -= normal * (overlap * b.mass / totalMass);
     b.position += normal * (overlap * a.mass / totalMass);
 
+    // normal points a→b, so relativeVel > 0 means approaching — apply impulse
+    // relativeVel < 0 means already separating — skip
     float relativeVel = (a.velocity - b.velocity).dot(normal);
-    if (relativeVel >= 0.0f)
+    if (relativeVel <= 0.0f)
         return;
 
     float impulse = 2.0f * relativeVel / totalMass;
