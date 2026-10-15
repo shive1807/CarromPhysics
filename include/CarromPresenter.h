@@ -4,6 +4,7 @@
 #include "CarromView.h"
 #include "ParticleSystem.h"
 #include "Simulation.h"
+#include "SoundSystem.h"
 
 class CarromPresenter {
 public:
@@ -36,7 +37,9 @@ private:
     Simulation&    m_sim;
     CarromView&    m_view;
     CarromAI       m_ai;
+    SoundSystem    m_sound;
     ParticleSystem m_particles;
+    float          m_soundCooldown = 0.0f;  // throttles rapid collision sounds
 
     float m_padding;
     float m_boardSize;

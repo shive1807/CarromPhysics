@@ -26,6 +26,7 @@ int main() {
 
     InitWindow(kWindowSize, kWindowSize, "CarromPhysics");
     SetTargetFPS(60);
+    InitAudioDevice();
 
     static CarromView      view(kWindowSize, kBoardSize);
     static CarromPresenter presenter(sim, view, kWindowSize, kBoardSize);
@@ -41,6 +42,7 @@ int main() {
     while (!WindowShouldClose())
         gameLoop();
 
+    CloseAudioDevice();
     CloseWindow();
 #endif
 

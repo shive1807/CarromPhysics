@@ -114,11 +114,15 @@ void CarromPresenter::handleAIAim(float dt) {
     if (m_aiAimTimer <= 0.0f) {
         m_sim.clearPottedThisTurn();
         m_sim.shoot(m_aiShootVel);
+        m_sound.playShoot();
         m_state = State::Moving;
     }
 }
 
 void CarromPresenter::resolveTurnEnd() {
+    if (!m_sim.pottedThisTurn().empty())
+        m_sound.playPocket();
+
     const auto& potted  = m_sim.pottedThisTurn();
     const PieceType own = (m_turn == Turn::Human) ? PieceType::White : PieceType::Black;
 
@@ -160,6 +164,7 @@ void CarromPresenter::resolveTurnEnd() {
     if (remainingOwn == 0 && m_queenSecured) {
         m_winner = m_turn;
         m_state  = State::GameOver;
+        m_sound.playGameOver(m_turn == Turn::Human);
         return;
     }
 
@@ -221,6 +226,7 @@ void CarromPresenter::handleInput() {
                     Vec2  shootDir = drag.normalized() * -1.0f;
                     m_sim.clearPottedThisTurn();
                     m_sim.shoot(shootDir * (clamped * kPowerScale));
+                    m_sound.playShoot();
                     m_state = State::Moving;
                 } else {
                     m_state = State::Idle;
@@ -256,10 +262,20 @@ void CarromPresenter::emitParticles(float dt) {
                               m_sim.model().striker.velocity, r, g, b);
     }
 
-    // Collision bursts — drain events recorded during this frame's step()
-    for (const auto& ev : m_sim.collisionEvents())
+    // Collision bursts + sounds — drain events recorded during this frame's step()
+    float maxImpulse = 0.0f;
+    for (const auto& ev : m_sim.collisionEvents()) {
         m_particles.emitBurst(ev.position, ev.impulse);
+        if (ev.impulse > maxImpulse) maxImpulse = ev.impulse;
+    }
     m_sim.clearCollisionEvents();
+
+    // Play at most one collision sound per ~60 ms to avoid audio spam
+    m_soundCooldown -= dt;
+    if (maxImpulse > 5.0f && m_soundCooldown <= 0.0f) {
+        m_sound.playCollision(maxImpulse);
+        m_soundCooldown = 0.06f;
+    }
 
     m_particles.update(dt);
 }

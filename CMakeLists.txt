@@ -25,6 +25,7 @@ add_executable(${PROJECT_NAME}
     src/CarromPresenter.cpp
     src/CarromAI.cpp
     src/ParticleSystem.cpp
+    src/SoundSystem.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
