@@ -29,3 +29,18 @@ add_executable(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
+
+# ── Web / Emscripten target ─────────────────────────────────────────────────
+if(EMSCRIPTEN)
+    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+
+    target_link_options(${PROJECT_NAME} PRIVATE
+        -sUSE_GLFW=3                 # GLFW from Emscripten ports (no source build)
+        -sWASM=1
+        -sALLOW_MEMORY_GROWTH=1
+        -sTOTAL_MEMORY=67108864      # 64 MB initial heap
+        -sGL_ENABLE_GET_PROC_ADDRESS=1
+        -sASSERTIONS=0               # disable for smaller/faster release build
+        --shell-file ${CMAKE_SOURCE_DIR}/web/shell.html
+    )
+endif()

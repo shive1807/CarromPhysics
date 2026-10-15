@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarromPhysics</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1208;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: sans-serif;
+      color: #d4b483;
+    }
+    h1 { font-size: 1.4rem; letter-spacing: 0.15em; margin-bottom: 12px; }
+    #canvas-container {
+      border: 3px solid #5c3d0e;
+      border-radius: 4px;
+      box-shadow: 0 0 40px #000a;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+    #status {
+      margin-top: 10px;
+      font-size: 0.85rem;
+      opacity: 0.6;
+    }
+    /* Hide the default Emscripten output textarea */
+    textarea { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>&#127377; Carrom Physics</h1>
+  <div id="canvas-container">
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+  </div>
+  <p id="status">Loading…</p>
+
+  <script>
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      onRuntimeInitialized: function() {
+        document.getElementById('status').textContent = 'Click the board to play';
+      },
+      print:    function(t) { console.log(t); },
+      printErr: function(t) { console.warn(t); },
+    };
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>
