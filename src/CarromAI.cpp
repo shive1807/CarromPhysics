@@ -34,17 +34,26 @@ static bool pathClear(Vec2 from, Vec2 to,
     return true;
 }
 
-// Power needed so the piece travels pieceToPocket after receiving the impulse.
-// Approximation: elastic equal-mass collision → all momentum transferred.
-// Friction model: v(x) decays so range ≈ v / k  where k ≈ 0.91 (from 0.985^60).
+// Friction decay constant: per-second speed loss ≈ 1 - 0.985^60 × 60 = 0.91
+// Elastic collision mass ratio — striker(1.5) hitting piece(1.0):
+//   piece_vel = 2 × m_striker / (m_striker + m_piece) × v_striker = 1.2 × v_striker
 static constexpr float kFrictionDecay = 0.91f;
+static constexpr float kMassTransfer  = 1.2f;
 
-static float powerForRange(float strikerToGhost, float pieceToPocket) {
-    // Piece needs initial speed: pieceToPocket * kFrictionDecay to overcome friction
-    // Striker must arrive at ghost ball with that speed — it loses energy over strikerToGhost too.
-    float pieceNeed   = pieceToPocket * kFrictionDecay;
-    float strikerLoss = strikerToGhost * kFrictionDecay * 0.4f;  // partial loss en route
-    return pieceNeed + strikerLoss;
+// cosAngle: dot product of the striker's travel direction and pocketDir.
+// The collision impulse only transfers the component of striker velocity along
+// the normal (= pocketDir), so effective piece speed = 1.2 × v × cosAngle.
+// We must solve for the striker initial speed accounting for this projection.
+static float powerForRange(float strikerToGhost, float pieceToPocket, float cosAngle) {
+    // Guard against near-perpendicular shots inflating power to infinity
+    const float clampedCos = std::max(cosAngle, 0.45f);
+    // Piece must receive this much speed to reach the pocket
+    const float pieceNeed = pieceToPocket * kFrictionDecay;
+    // Striker arrival speed needed: piece gets 1.2 × v_arrival × cosAngle
+    const float strikerArrival = pieceNeed / (kMassTransfer * clampedCos);
+    // Striker decelerates under the same friction while travelling to ghost ball
+    const float strikerLoss = strikerToGhost * kFrictionDecay;
+    return (strikerArrival + strikerLoss) * 1.06f;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,7 +132,13 @@ std::optional<CarromAI::ShotCandidate> CarromAI::evaluatePocketShot(
         return std::nullopt;
 
     // --- 7. Power calibrated to push the piece all the way to the pocket ---
-    float rawPower = powerForRange(toGhostLen, pocketDist);
+    // cosAngle: how aligned the striker's travel direction is with the pocket direction.
+    // Only the projected component of the striker's velocity transfers to the piece.
+    const float cosAngle = (toGhost * (1.0f / toGhostLen)).dot(pocketDir);
+    if (cosAngle <= 0.05f)
+        return std::nullopt;  // shot is nearly perpendicular — skip it
+
+    float rawPower = powerForRange(toGhostLen, pocketDist, cosAngle);
     float power    = std::clamp(rawPower, kMinPower, kMaxPower);
     Vec2  velocity = toGhost * (power / toGhostLen);
 

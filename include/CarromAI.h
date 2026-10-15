@@ -30,5 +30,5 @@ private:
 
     static constexpr float kStrikerHalfSpan = 210.0f;
     static constexpr float kMinPower        = 300.0f;
-    static constexpr float kMaxPower        = 750.0f;
+    static constexpr float kMaxPower        = 950.0f;
 };
