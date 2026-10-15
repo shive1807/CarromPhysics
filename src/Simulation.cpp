@@ -8,9 +8,10 @@ static constexpr float kStrikerMass     = 1.5f;
 static constexpr float kStrikerEdgeOff  = 50.0f;  // matches CarromView kEdgeOffset
 static constexpr float kStrikerLineGap  = 20.0f;  // matches CarromView kLineGap
 
-Simulation::Simulation(Board board, float friction)
+Simulation::Simulation(Board board, float friction, float staticThreshold)
     : m_model{board, {}, cornersOf(board, kPocketRadius), defaultStriker(board)}
     , m_friction(friction)
+    , m_staticThreshold(staticThreshold)
 {}
 
 Circle2D Simulation::defaultStriker(const Board& board) {
@@ -59,8 +60,8 @@ void Simulation::step(float dt) {
 
     // 4. Apply friction after all constraints are resolved
     for (auto& c : m_model.pieces)
-        c.velocity *= m_friction;
-    m_model.striker.velocity *= m_friction;
+        applyFriction(c);
+    applyFriction(m_model.striker);
 
     checkPockets();
 }
@@ -113,6 +114,12 @@ void Simulation::checkPockets() {
         }),
         m_model.pieces.end()
     );
+}
+
+void Simulation::applyFriction(Circle2D& c) const {
+    c.velocity *= m_friction;
+    if (c.velocity.lengthSq() < m_staticThreshold * m_staticThreshold)
+        c.velocity = {};
 }
 
 void Simulation::resolveWalls(Circle2D& c) {

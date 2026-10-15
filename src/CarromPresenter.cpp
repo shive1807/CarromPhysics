@@ -1,10 +1,9 @@
 #include "CarromPresenter.h"
 #include "raylib.h"
 
-static constexpr float kPowerScale    = 6.0f;   // drag distance → speed multiplier
-static constexpr float kMaxDrag       = 120.0f;  // max drag distance in sim units
-static constexpr float kMaxAimLength  = 180.0f;  // visual aim line length
-static constexpr float kStopSpeedSq   = 25.0f;   // (5 units/sec)^2 — considered stopped
+static constexpr float kPowerScale   = 6.0f;   // drag distance → speed multiplier
+static constexpr float kMaxDrag      = 120.0f;  // max drag distance in sim units
+static constexpr float kMaxAimLength = 180.0f;  // visual aim line length
 
 CarromPresenter::CarromPresenter(Simulation& sim, CarromView& view, int windowSize, float boardSize)
     : m_sim(sim)
@@ -81,11 +80,12 @@ bool CarromPresenter::isOnStriker(Vec2 simPos) const {
 }
 
 bool CarromPresenter::allStopped() const {
+    // Static friction zeros velocity below threshold, so a non-zero check is sufficient
     const CarromModel& model = m_sim.model();
-    if (model.striker.velocity.lengthSq() >= kStopSpeedSq)
+    if (model.striker.velocity.lengthSq() > 0.0f)
         return false;
     for (const auto& p : model.pieces)
-        if (p.velocity.lengthSq() >= kStopSpeedSq)
+        if (p.velocity.lengthSq() > 0.0f)
             return false;
     return true;
 }
