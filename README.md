@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/shive1807/CarromPhysics/main/web/preview.png" alt="Carrom Physics" width="600"/>
+<img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQNjim729SDv4X3c0MzrFrCPoISuKgYnEKVR7MHKNdutg&s=10" alt="Carrom Physics" width="600"/>
 
 # 🎯 Carrom Physics
 
