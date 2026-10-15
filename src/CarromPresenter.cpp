@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include <algorithm>
 #include <cmath>
+#include <random>
 
 static constexpr float kPowerScale    = 6.0f;
 static constexpr float kMaxDrag       = 120.0f;
@@ -53,6 +54,9 @@ void CarromPresenter::update(float dt) {
         case State::AIMoveStriker:
             handleAIMoveStriker(dt);
             break;
+        case State::AIAiming:
+            handleAIAim(dt);
+            break;
         case State::Moving:
             m_sim.step(dt);
             emitParticles(dt);
@@ -94,12 +98,23 @@ void CarromPresenter::handleAIMoveStriker(float dt) {
 
     if (std::abs(diff) <= step) {
         m_sim.setStrikerX(m_aiTargetX);
-        m_sim.clearPottedThisTurn();
-        m_sim.shoot(m_aiShootVel);
-        m_state = State::Moving;
+        // Pick a random pause between kAIAimDelayMin and kAIAimDelayMax seconds
+        static std::mt19937 s_rng{std::random_device{}()};
+        m_aiAimDuration = std::uniform_real_distribution<float>{kAIAimDelayMin, kAIAimDelayMax}(s_rng);
+        m_aiAimTimer    = m_aiAimDuration;
+        m_state = State::AIAiming;
     } else {
         const float dir = diff > 0.0f ? 1.0f : -1.0f;
         m_sim.setStrikerX(currentX + dir * step);
+    }
+}
+
+void CarromPresenter::handleAIAim(float dt) {
+    m_aiAimTimer -= dt;
+    if (m_aiAimTimer <= 0.0f) {
+        m_sim.clearPottedThisTurn();
+        m_sim.shoot(m_aiShootVel);
+        m_state = State::Moving;
     }
 }
 
@@ -264,8 +279,24 @@ void CarromPresenter::draw() const {
         const float     dragLen = drag.length();
         const Vec2      aimDir  = dragLen > 0.0f ? drag.normalized() * -1.0f : Vec2{};
         const float     t       = std::min(dragLen, kMaxDrag) / kMaxDrag;
-        const float     powerR  = striker.radius * (1.0f + t);   // striker.r → 2×striker.r
+        const float     powerR  = striker.radius * (1.0f + t);
         m_view.drawAimLine(striker.position, striker.position + aimDir * kMaxAimLength, powerR);
+    }
+
+    if (m_state == State::AIAiming) {
+        const Circle2D& striker  = m_sim.model().striker;
+        const float     shootLen = m_aiShootVel.length();
+        if (shootLen > 0.0f) {
+            const Vec2  aimDir = m_aiShootVel * (1.0f / shootLen);
+            // Charge fraction: 0 when aim starts → 1 just before shot fires
+            const float charge = (m_aiAimDuration > 0.0f)
+                                 ? 1.0f - (m_aiAimTimer / m_aiAimDuration)
+                                 : 1.0f;
+            const float powerR = striker.radius * (1.0f + charge);  // 1× → 2×
+            m_view.drawAimLine(striker.position,
+                               striker.position + aimDir * kMaxAimLength,
+                               powerR);
+        }
     }
 
     if (m_state == State::GameOver) {
